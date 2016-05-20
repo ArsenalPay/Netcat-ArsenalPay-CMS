@@ -1,0 +1,14 @@
+/* ArsenalPay */
+define("NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_TOKEN_IS_NOT_VALID", "Уникальный токен некорректен");
+define("NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_KEY_IS_NOT_VALID", "Ключ некорректен");
+define("NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_PAYMENT_TYPE_IS_NOT_VALID", "Тип платежа некорректен");
+define("NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_MISSING_PARAM", "Пропущен параметр");
+define("NETCAT_MODULE_PAYMENT_ARSENALPAY_INVALID_SIGNATURE", "Неверная подпись");
+define("NETCAT_MODULE_PAYMENT_ARSENALPAY_INVALID_AMOUNT", "Неверная сумма");
+define("NETCAT_MODULE_ARSENALPAY_INVOICE_NOT_FOUND", "Не найден номер заказа");
+
+
+
+
+
+
