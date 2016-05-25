@@ -14,8 +14,8 @@ class nc_payment_system_arsenalpay extends nc_payment_system {
     const TARGET_URL = "https://arsenalpay.ru/payframe/pay.php";
 
     /**
-	 * @var boolean  TRUE — автоматический прием платежа, FALSE — ручная проверка
-	 */
+     * @var boolean  TRUE — автоматический прием платежа, FALSE — ручная проверка
+     */
     protected $automatic = TRUE;
 
     // @var array  Коды валют, которые принимает платежная система (трехбуквенные коды ISO 4217)
@@ -31,7 +31,7 @@ class nc_payment_system_arsenalpay extends nc_payment_system {
 		'PaymentType'  => null, 
 		'CallbackURL' => nc_payment_system_arsenalpay::ARSENALPAY_CB_URL, 
 		'AllowedIP'  => null,
-        'CssFileUrl'  => "",	 
+        'CssFileUrl'  => "",
 		'IframeAttributes'=> null,
 		'FrameMode' => "1",
     );
@@ -48,48 +48,48 @@ class nc_payment_system_arsenalpay extends nc_payment_system {
     protected $callback_response = array(
         'ID'       => null, /* Идентификатор ТСП/ merchant identifier */
         'FUNCTION' => null, /* Тип запроса/ type of request to which the response is received*/
-	    'RRN'      => null, /* Идентификатор транзакции/ transaction identifier */
-	    'PAYER'    => null, /* Идентификатор плательщика/ payer(customer) identifier */
-		'AMOUNT'   => null, /* Сумма платежа/ payment amount */
-	    'ACCOUNT'  => null, /* Номер получателя платежа (номер заказа, номер ЛС) на стороне ТСП/ order number */
-	    'STATUS'   => null, /* Статус платежа - check - запрос на проверку номера получателя : payment - запрос на передачу статуса платежа
-            				/* Payment status. When 'check' - response for the order number checking, when 'payment' - response for status change.*/
-		'DATETIME' => null, /* Дата и время в формате ISO-8601 (YYYY-MM-DDThh:mm:ss±hh:mm), УРЛ-кодированное */
-            				/* Date and time in ISO-8601 format, urlencoded.*/
-		'SIGN'     => null,  /* Подпись запроса/ response sign.
-             				/* = md5(md5(ID).md(FUNCTION).md5(RRN).md5(PAYER).md5(AMOUNT).md5(ACCOUNT).md(STATUS).md5(PASSWORD)) */       
+        'RRN'      => null, /* Идентификатор транзакции/ transaction identifier */
+        'PAYER'    => null, /* Идентификатор плательщика/ payer(customer) identifier */
+        'AMOUNT'   => null, /* Сумма платежа/ payment amount */
+        'ACCOUNT'  => null, /* Номер получателя платежа (номер заказа, номер ЛС) на стороне ТСП/ order number */
+        'STATUS'   => null, /* Статус платежа - check - запрос на проверку номера получателя : payment - запрос на передачу статуса платежа
+                            /* Payment status. When 'check' - response for the order number checking, when 'payment' - response for status change.*/
+        'DATETIME' => null, /* Дата и время в формате ISO-8601 (YYYY-MM-DDThh:mm:ss±hh:mm), УРЛ-кодированное */
+                            /* Date and time in ISO-8601 format, urlencoded.*/
+        'SIGN'     => null, /* Подпись запроса/ response sign.
+                            /* = md5(md5(ID).md(FUNCTION).md5(RRN).md5(PAYER).md5(AMOUNT).md5(ACCOUNT).md(STATUS).md5(PASSWORD)) */
     );
 
     /**
      * Проведение платежа
      */
     public function execute_payment_request(nc_payment_invoice $invoice) {
-		ob_end_clean();  	
-		$currency = $this->get_currency_code($invoice->get_currency()); 
-		$order_id = $invoice->get_id();
-		$settings = [
-					'src' => $this->get_setting('PaymentType'),
-					't' => $this->get_setting('UniqueToken'),
-					'n' => $order_id,
-					'a' => $invoice->get_amount("%0.2F"),
-					'frame' => $this->get_setting('FrameMode'),
-					'css' => $this->get_setting('CssFileUrl'),
-					'msisdn' => '',
-					];
-		$iframeAttributes = $this->get_setting('IframeAttributes');
-		$frameParams = http_build_query($settings);
-		if (strlen($iframeAttributes) == 0) {
-			$iframeAttributes = "width=750 height=750 scrolling='auto' frameborder='no' seamless";
-		}
-		$src = nc_payment_system_arsenalpay::TARGET_URL . "?" . $frameParams;
-		//Frame displays the payment after placing the order.
-	 	$iframe = "
-        <html>
-          <body>
-                <iframe src='" . $src . "' '" .$iframeAttributes. "'>
-                </iframe>
-          </body>
-        </html>
+        ob_end_clean();
+        $currency = $this->get_currency_code($invoice->get_currency());
+        $order_id = $invoice->get_id();
+        $settings = [
+            'src' => $this->get_setting('PaymentType'),
+            't' => $this->get_setting('UniqueToken'),
+            'n' => $order_id,
+            'a' => $invoice->get_amount("%0.2F"),
+            'frame' => $this->get_setting('FrameMode'),
+            'css' => $this->get_setting('CssFileUrl'),
+            'msisdn' => '',
+        ];
+        $iframeAttributes = $this->get_setting('IframeAttributes');
+        $frameParams = http_build_query($settings);
+        if (strlen($iframeAttributes) == 0) {
+            $iframeAttributes = "width=750 height=750 scrolling='auto' frameborder='no' seamless";
+        }
+        $src = nc_payment_system_arsenalpay::TARGET_URL . "?" . $frameParams;
+        //Frame displays the payment after placing the order.
+        $iframe = "
+            <html>
+                <body>
+                    <iframe src='" . $src . "' '" .$iframeAttributes. "'>
+                    </iframe>
+                </body>
+            </html>
         ";
         echo $iframe;
         exit;
