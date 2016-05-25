@@ -26,14 +26,14 @@ class nc_payment_system_arsenalpay extends nc_payment_system {
 
     // Настройки платёжной системы
     protected $settings = array(
-		'UniqueToken'=> null,    	
-		'SecretKey'  => null,
-		'PaymentType'  => null, 
-		'CallbackURL' => nc_payment_system_arsenalpay::ARSENALPAY_CB_URL, 
-		'AllowedIP'  => null,
+        'UniqueToken'=> null,
+        'SecretKey'  => null,
+        'PaymentType'  => null,
+        'CallbackURL' => nc_payment_system_arsenalpay::ARSENALPAY_CB_URL,
+        'AllowedIP'  => null,
         'CssFileUrl'  => "",
-		'IframeAttributes'=> null,
-		'FrameMode' => "1",
+        'IframeAttributes'=> null,
+        'FrameMode' => "1",
     );
 
     // Дополнительные (изменяемые) параметры запроса к платежной системе  
@@ -141,8 +141,8 @@ class nc_payment_system_arsenalpay extends nc_payment_system {
         }
     }
 
-	/**
-	 * Проверка параметров при поступлении обратного
+    /**
+     * Проверка параметров при поступлении обратного
      * вызова платежной системы.
      * В случае ошибок вызывать метод add_error($string)
      */
