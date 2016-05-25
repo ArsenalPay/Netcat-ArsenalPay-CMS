@@ -1,7 +1,7 @@
 <?
 
 class nc_payment_system_arsenalpay extends nc_payment_system {
-
+	
 	const ERROR_TOKEN_IS_NOT_VALID = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_TOKEN_IS_NOT_VALID;
     const ERROR_KEY_IS_NOT_VALID = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_KEY_IS_NOT_VALID;
     const ERROR_PAYMENT_TYPE_IS_NOT_VALID = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_PAYMENT_TYPE_IS_NOT_VALID;
@@ -76,9 +76,9 @@ class nc_payment_system_arsenalpay extends nc_payment_system {
 					'css' => $this->get_setting('CssFileUrl'),
 					'msisdn' => '',
 					];
-		$iframeAtrributes = $this->get_setting('IframeAttributes');
+		$iframeAttributes = $this->get_setting('IframeAttributes');
 		$frameParams = http_build_query($settings);
-		if (strlen($iframeAtrributes) == 0) {
+		if (strlen($iframeAttributes) == 0) {
 			$iframeAttributes = "width=750 height=750 scrolling='auto' frameborder='no' seamless";
 		}
 		$src = nc_payment_system_arsenalpay::TARGET_URL . "?" . $frameParams;
