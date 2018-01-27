@@ -1,24 +1,21 @@
 # Netcat-ArsenalPay-CMS
 Netcat ArsenalPay CMS is software development kit for fast simple and seamless integration of your Netcat web site with processing server of ArsenalPay.
 ## Version  
-*1.0.0*  
-*Has been tested on NetCat Extra version 5.6.0*  
+*1.0.1*  
+*Has been tested on NetCat Extra version 5.8.0*  
 *Required php >= 5.4.0*
 ### Установка
 Для установки платежного модуля ArsenalPay необходимо произвести следующие действия:  
 1. Скопировать папку netcat в корень сайта.  
 2. Выполнить SQL запросы из файла install.sql  
 3. Добавить содержимое языковых файлов ru_cp1251.lang.php и ru_utf8.lang.php в соответствующие файлы в каталоге /wwwroot/netcat/modules/payment/  
-4. В разделе "Прием платежей" включите платежную систему ArsenalPay и настройте ее:
- - *UniqueToken*  - уникальный токен, который присваивается интернет-магазину для работы с фреймом;
- - *SecretKey*  - Ключ для проверки подписи запросов, обязательный;
- - *PaymentType* - Тип платежа, обязательный. Возможные варианты: «mk» - оплата с мобильного телефона (мобильная 	коммерция), «card» оплата с пластиковой карты (интернет-эквайринг);
- - *CallbackURL* - УРЛ колбэка платежа, обязательный, по умолчанию "http://ДОМЕН/netcat/modules/payment/callback.php?paySystem=nc_payment_system_arsenalpay". Сообщите урл-колбэка менеджеру ArsenalPay;
+4. Сообщите урл-колбэка менеджеру ArsenalPay "http://ДОМЕН/netcat/modules/payment/callback.php?paySystem=nc_payment_system_arsenalpay"
+5. В разделе "Прием платежей" включите платежную систему ArsenalPay и настройте ее:
+ - *WidgetId*  - Номер виджета, который присваивается интернет-магазину для работы с виджетом;
+ - *WidgetKey*  - Ключ для создания подписи виджета
+ - *CallbackKey* - Ключ для проверки подписи запросов, обязательный;
  - *AllowedIP* - (необязательный параметр) IP-адрес, с которого будет разрешен запрос от ArsenalPay;
- - *CssFileUrl* - (необязательный параметр) – адрес (URL) CSS файла;
- - *IframeAttributes* - (необязательный параметр) - прочие параметры фрейма. Например: width='750' height='750' frameborder='0' scrolling='auto';
- - *FrameMode* - (необязательный параметр) – режим отображения платежной страницы («1» - во фрейме, иначе во всю страницу).  
-5. В меню Настройки => Интернет-магазин => Настройки => «Оплата» добавьте новый вариант оплаты  
+6. В меню Настройки => Интернет-магазин => Настройки => «Оплата» добавьте новый вариант оплаты  
 
 ------------------
 

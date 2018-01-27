@@ -1,1 +1,4 @@
 .idea
+*.log
+*.zip
+mount_script

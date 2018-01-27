@@ -2,246 +2,424 @@
 
 class nc_payment_system_arsenalpay extends nc_payment_system {
 
-    const ERROR_TOKEN_IS_NOT_VALID = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_TOKEN_IS_NOT_VALID;
-    const ERROR_KEY_IS_NOT_VALID = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_KEY_IS_NOT_VALID;
-    const ERROR_PAYMENT_TYPE_IS_NOT_VALID = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_PAYMENT_TYPE_IS_NOT_VALID;
-    const ARSENALPAY_CB_URL = "/netcat/modules/payment/callback.php?paySystem=nc_payment_system_arsenalpay";
-    const ERROR_MISSING_PARAM = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_MISSING_PARAM;
-    const ERROR_INVALID_SIGNATURE = NETCAT_MODULE_PAYMENT_ARSENALPAY_INVALID_SIGNATURE;
-    const ERROR_INVALID_AMOUNT = NETCAT_MODULE_PAYMENT_ARSENALPAY_INVALID_AMOUNT;
-    const ERROR_INVOICE_NOT_FOUND = NETCAT_MODULE_ARSENALPAY_INVOICE_NOT_FOUND;
+	const ERROR_CALLBACK_KEY_IS_NOT_VALID = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_CALLBACK_KEY_IS_NOT_VALID;
+	const ERROR_WIDGET_ID_IS_NOT_VALID = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_WIDGET_ID_IS_NOT_VALID;
+	const ERROR_WIDGET_KEY_IS_NOT_VALID = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_WIDGET_KEY_IS_NOT_VALID;
+	const ERROR_MISSING_PARAM = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_MISSING_PARAM;
+	const INVALID_SIGNATURE = NETCAT_MODULE_PAYMENT_ARSENALPAY_INVALID_SIGNATURE;
+	const ERROR_FUNCTION = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_FUNCTION;
+	const ERROR_AMOUNT = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_AMOUNT;
+	const ERROR_STATUS = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_STATUS;
+	const INVOICE_NOT_FOUND = NETCAT_MODULE_PAYMENT_ARSENALPAY_INVOICE_NOT_FOUND;
+	const ERROR_NOT_ALLOWED_IP = NETCAT_MODULE_PAYMENT_ARSENALPAY_ERROR_NOT_ALLOWED_IP;
+	/**
+	 * @var boolean  TRUE — автоматический прием платежа, FALSE — ручная проверка
+	 */
+	protected $automatic = true;
 
-    const TARGET_URL = "https://arsenalpay.ru/payframe/pay.php";
+	// @var array  Коды валют, которые принимает платежная система (трехбуквенные коды ISO 4217)
+	protected $accepted_currencies = array('RUB', 'RUR');
 
-    /**
-     * @var boolean  TRUE — автоматический прием платежа, FALSE — ручная проверка
-     */
-    protected $automatic = TRUE;
+	// Автоматический маппинг кодов валют из внешних в принятые в платежной системе
+	protected $currency_map = array('RUR' => 'RUB');
 
-    // @var array  Коды валют, которые принимает платежная система (трехбуквенные коды ISO 4217)
-    protected $accepted_currencies = array('RUB', 'RUR'); //уточнить полный список валют
+	// Настройки платёжной системы
+	protected $settings = array(
+		'WidgetId'    => null,
+		'WidgetKey'   => null,
+		'CallbackKey' => null,
+		'AllowedIP'   => null,
+	);
 
-    // Автоматический маппинг кодов валют из внешних в принятые в платежной системе
-    protected $currency_map = array('RUR' => 'RUB');
+	// Дополнительные (изменяемые) параметры запроса к платежной системе
+	protected $request_parameters = array(
+		'MERCH_TYPE'  => null,
+		'AMOUNT_FULL' => null,
+	);
 
-    // Настройки платёжной системы
-    protected $settings = array(
-        'UniqueToken'=> null,
-        'SecretKey'  => null,
-        'PaymentType'  => null,
-        'CallbackURL' => nc_payment_system_arsenalpay::ARSENALPAY_CB_URL,
-        'AllowedIP'  => null,
-        'CssFileUrl'  => "",
-        'IframeAttributes'=> null,
-        'FrameMode' => "1",
-    );
-
-    // Дополнительные (изменяемые) параметры запроса к платежной системе  
-    protected $request_parameters = array(
-    	'MERCH_TYPE' => null,
-    	'AMOUNT_FULL' => null,
-    );
-
-    /**
-     * @var array  Ответ платёжной системы
-     */
-    protected $callback_response = array(
-        'ID'       => null, /* Идентификатор ТСП/ merchant identifier */
-        'FUNCTION' => null, /* Тип запроса/ type of request to which the response is received*/
-        'RRN'      => null, /* Идентификатор транзакции/ transaction identifier */
-        'PAYER'    => null, /* Идентификатор плательщика/ payer(customer) identifier */
-        'AMOUNT'   => null, /* Сумма платежа/ payment amount */
-        'ACCOUNT'  => null, /* Номер получателя платежа (номер заказа, номер ЛС) на стороне ТСП/ order number */
-        'STATUS'   => null, /* Статус платежа - check - запрос на проверку номера получателя : payment - запрос на передачу статуса платежа
+	/**
+	 * @var array  Ответ платёжной системы
+	 */
+	protected $callback_response = array(
+		'ID'       => null, /* Идентификатор ТСП/ merchant identifier */
+		'FUNCTION' => null, /* Тип запроса/ type of request to which the response is received*/
+		'RRN'      => null, /* Идентификатор транзакции/ transaction identifier */
+		'PAYER'    => null, /* Идентификатор плательщика/ payer(customer) identifier */
+		'AMOUNT'   => null, /* Сумма платежа/ payment amount */
+		'ACCOUNT'  => null, /* Номер получателя платежа (номер заказа, номер ЛС) на стороне ТСП/ order number */
+		'STATUS'   => null, /* Статус платежа - check - запрос на проверку номера получателя : payment - запрос на передачу статуса платежа
                             /* Payment status. When 'check' - response for the order number checking, when 'payment' - response for status change.*/
-        'DATETIME' => null, /* Дата и время в формате ISO-8601 (YYYY-MM-DDThh:mm:ss±hh:mm), УРЛ-кодированное */
-                            /* Date and time in ISO-8601 format, urlencoded.*/
-        'SIGN'     => null, /* Подпись запроса/ response sign.
+		'DATETIME' => null, /* Дата и время в формате ISO-8601 (YYYY-MM-DDThh:mm:ss±hh:mm), УРЛ-кодированное */
+		/* Date and time in ISO-8601 format, urlencoded.*/
+		'SIGN'     => null, /* Подпись запроса/ response sign.
                             /* = md5(md5(ID).md(FUNCTION).md5(RRN).md5(PAYER).md5(AMOUNT).md5(ACCOUNT).md(STATUS).md5(PASSWORD)) */
-    );
+	);
 
-    /**
-     * Проведение платежа
-     */
-    public function execute_payment_request(nc_payment_invoice $invoice) {
-        ob_end_clean();
-        $currency = $this->get_currency_code($invoice->get_currency());
-        $order_id = $invoice->get_id();
-        $settings = [
-            'src' => $this->get_setting('PaymentType'),
-            't' => $this->get_setting('UniqueToken'),
-            'n' => $order_id,
-            'a' => $invoice->get_amount("%0.2F"),
-            'frame' => $this->get_setting('FrameMode'),
-            'css' => $this->get_setting('CssFileUrl'),
-            'msisdn' => '',
-        ];
-        $iframeAttributes = $this->get_setting('IframeAttributes');
-        $frameParams = http_build_query($settings);
-        if (strlen($iframeAttributes) == 0) {
-            $iframeAttributes = "width=750 height=750 scrolling='auto' frameborder='no' seamless";
-        }
-        $src = nc_payment_system_arsenalpay::TARGET_URL . "?" . $frameParams;
-        //Frame displays the payment after placing the order.
-        $iframe = "
-            <html>
-                <body>
-                    <iframe src='" . $src . "' '" .$iframeAttributes. "'>
-                    </iframe>
-                </body>
-            </html>
-        ";
-        echo $iframe;
-        exit;
-    }
+	/**
+	 * Проведение платежа
+	 */
+	public function execute_payment_request(nc_payment_invoice $invoice) {
+		ob_end_clean();
+		$userId = $invoice->get_customer_contact_for_receipt();
+		if ($userId == nc_payment_register::get_default_customer_email()) {
+			$userId = '';
+		}
+		$destination = $invoice->get_id();
+		$amount      = $invoice->get_amount("%0.2F");
+		$widget      = $this->get_setting('WidgetId');
+		$widgetKey   = $this->get_setting('WidgetKey');
+		$nonce       = md5(microtime(true) . mt_rand(100000, 999999));
+		$signParam   = "$userId;$destination;$amount;$widget;$nonce";
+		$widgetSign  = hash_hmac('sha256', $signParam, $widgetKey);
+		$html        = "
+				<div id='arsenalpay-widget'></div>
+				<script src='https://arsenalpay.ru/widget/script.js'></script>
+				<script>
+					var widget = new ArsenalpayWidget();
+					widget.element = 'arsenalpay-widget';
+					widget.widget = {$widget};
+					widget.destination = '{$destination}';
+					widget.amount = '{$amount}';
+					widget.userId = '{$userId}';
+					widget.nonce = '{$nonce}';
+					widget.widgetSign = '{$widgetSign}';
+					widget.render();
+				</script>
+				";
+		echo $html;
+		exit;
+	}
 
-    /**
-     * Анализ обратного вызова платежной системы и
-     * вызов методов on_payment_success() или on_payment_failure().
-     * @param nc_payment_invoice $invoice
-     */
-    public function on_response(nc_payment_invoice $invoice = null) {
-        $status = $this->get_response_value('STATUS');
+	/**
+	 * Анализ обратного вызова платежной системы и
+	 * вызов методов on_payment_success() или on_payment_failure().
+	 *
+	 * @param nc_payment_invoice $invoice
+	 */
+	public function on_response(nc_payment_invoice $invoice = null) {
+		$function = $this->get_response_value('FUNCTION');
 
-        if ($status == 'check') {
-            $invoice_id = $this->get_response_value('ACCOUNT');
+		switch ($function) {
+			case 'check':
+				$invoice->set('status', nc_payment_invoice::STATUS_WAITING);
+				$invoice->save();
+				$this->exitf('YES');
+				break;
 
-            $invoice->set('status', nc_payment_invoice::STATUS_WAITING);
-            $invoice->save();
+			case 'payment':
+				$this->on_payment_success($invoice);
+				$this->exitf('OK');
+				break;
 
-            $this->print_callback_answer('YES', $invoice_id);
-        } else if ($status == 'payment') {
-            $invoice_id = $this->get_response_value('ACCOUNT');
+			case 'hold':
+				$invoice->set('status', nc_payment_invoice::STATUS_WAITING);
+				$invoice->save();
+				$this->exitf('OK');
+				break;
 
-            $invoice->set('status', nc_payment_invoice::STATUS_SUCCESS);
-            $invoice->save();
+			case 'cancel':
+				$this->on_payment_rejected($invoice);
+				$this->exitf('OK');
+				break;
 
-            $this->print_callback_answer("OK", $invoice_id);
-            $this->on_payment_success($invoice);
-        } 
-        else {
-        	$this->print_callback_answer("ERR", $invoice_id);
-        	$this->on_payment_failure($invoice);
-        }
-    }
+			case 'cancelinit':
+				$this->on_payment_rejected($invoice);
+				$this->exitf('OK');
+				break;
 
-    /**
-     * Проверка параметров для проведения платежа.
-     * В случае ошибок вызывать метод add_error($string)
-     */
-    public function validate_payment_request_parameters() {
-        if (!$this->get_setting('UniqueToken')) {
-            $this->add_error(nc_payment_system_arsenalpay::ERROR_TOKEN_IS_NOT_VALID);
-        }
-		if (!$this->get_setting('SecretKey')) {
-            $this->add_error(nc_payment_system_arsenalpay::ERROR_KEY_IS_NOT_VALID);
-        }
-		if (!$this->get_setting('PaymentType')) {
-			$this->add_error(nc_payment_system_arsenalpay::ERROR_PAYMENT_TYPE_IS_NOT_VALID);
-        }
-    }
+			default:
+				$this->on_payment_failure($invoice);
+				$this->exitf('ERR');
+				break;
+		}
+	}
 
-    /**
-     * Проверка параметров при поступлении обратного
-     * вызова платежной системы.
-     * В случае ошибок вызывать метод add_error($string)
-     */
-    public function validate_payment_callback_response(nc_payment_invoice $invoice = null) {
-        $error = false;
-        $status = $this->get_response_value('STATUS');
-        $invoice_id = $this->get_response_value('ACCOUNT');
-        // reading AllowedIP from config params
-        $allowed_ip = $this->get_setting('AllowedIP');
-        $remote_address = $_SERVER["REMOTE_ADDR"];
-        $log_string = date("Y-m-d H:i:s") . " " . $remote_address . " ";
-        if( strlen( $allowed_ip ) > 0 && $allowed_ip != $remote_address ) {
-            $error = nc_payment_invoice::STATUS_CALLBACK_ERROR;
-            $this->post_log(nc_payment_system_arsenalpay::ERROR_NOT_ALLOWED_IP);
-            $this->add_error(nc_payment_system_arsenalpay::ERROR_NOT_ALLOWED_IP);
-        }
-        foreach( $this->get_response() as $key => $val ) {
-            if( empty( $this->get_response_value($key) ) && (($key != 'MERCH_TYPE') && ($key != 'AMOUNT_FULL')) ) {
-                $error = nc_payment_invoice::STATUS_CALLBACK_ERROR;
-                $this->post_log(nc_payment_system_arsenalpay::ERROR_MISSING_PARAM . $key);
-                $this->add_error(nc_payment_system_arsenalpay::ERROR_MISSING_PARAM);
-            } 
-            else {
-                $log_string .= "{$key}={$val}&";
-            }
-        }
-        $this->post_log($log_string);
-        
-        if ($invoice) {
-            $lessAmount = false;
-            if (!($this->check_sign())) {
-                $error = nc_payment_invoice::STATUS_CALLBACK_ERROR;
-                
-                $this->post_log(nc_payment_system_arsenalpay::ERROR_INVALID_SIGNATURE);
-                $this->add_error(nc_payment_system_arsenalpay::ERROR_INVALID_SIGNATURE);
-            } 
-            else if ($this->get_response_value('MERCH_TYPE') == 0 && $invoice->get_amount() ==  $this->get_response_value('AMOUNT')) {
-                $lessAmount = false;
-            } 
-            else if($this->get_response_value('MERCH_TYPE') == 1 && $invoice->get_amount() >= $this->get_response_value('AMOUNT') && 
-                $invoice->get_amount() ==  $this->get_response_value('AMOUNT_FULL')) {
-                $lessAmount = true;
-            } 
-            else {
-                $error = nc_payment_invoice::STATUS_CALLBACK_WRONG_SUM;
-                $this->post_log(nc_payment_system_arsenalpay::ERROR_INVALID_AMOUNT);
-                $this->add_error(nc_payment_system_arsenalpay::ERROR_INVALID_AMOUNT);
-            }
-            
-            if ($lessAmount) {
-                $this->post_log("Callback response with less amount {$this->get_response_value('AMOUNT')}");
-            }
-            if ($error) {
-                $invoice->set('status', $error);
-                $invoice->save();
-            }
-        } 
-        else {
-            $error = true;
-            $this->post_log(nc_payment_system_arsenalpay::ERROR_INVOICE_NOT_FOUND);
-            $this->add_error(nc_payment_system_arsenalpay::ERROR_INVOICE_NOT_FOUND);
-        }
-        
-        if ($error) {
-            if ($status == 'check') {
-                $this->print_callback_answer('NO', $invoice_id);
-            } 
-            else {
-                $this->print_callback_answer('ERR', $invoice_id);
-            }
-        }
-    }
-    
-    /**
-     * @return nc_payment_invoice|boolean 
-     */
-    public function load_invoice_on_callback() {
-        return $this->load_invoice($this->get_response_value('ACCOUNT'));
-    }
-    
-    private function check_sign() {
-        $secret_key = $this->get_setting('SecretKey');
-        $validSign = ( $this->get_response_value('SIGN') === md5(md5($this->get_response_value('ID')). 
-                md5($this->get_response_value('FUNCTION')).md5($this->get_response_value('RRN')). 
-                md5($this->get_response_value('PAYER')).md5($this->get_response_value('AMOUNT')).md5($this->get_response_value('ACCOUNT')). 
-                md5($this->get_response_value('STATUS')).md5($secret_key) ) )? true : false;
-        return $validSign;
-    }
-    
-    private function post_log($str)
-    {
-        $fp = fopen(realpath(dirname(__FILE__)) . "/arsenalpay/callback.log", "a+");
-        fwrite($fp, $str . "\r\n");
-        fclose($fp);
-    }	
-    
-    private function print_callback_answer($answer, $invoice_id) {
-        $this->post_log("invoice id: " . $invoice_id . "; answer: " . $answer);
-        echo $answer;
-    }
+	/**
+	 * Проверка параметров для проведения платежа.
+	 * В случае ошибок вызывать метод add_error($string)
+	 */
+	public function validate_payment_request_parameters() {
+		if (!$this->get_setting('CallbackKey')) {
+			$this->add_error(nc_payment_system_arsenalpay::ERROR_CALLBACK_KEY_IS_NOT_VALID);
+		}
+		if (!$this->get_setting('WidgetId')) {
+			$this->add_error(nc_payment_system_arsenalpay::ERROR_WIDGET_ID_IS_NOT_VALID);
+		}
+		if (!$this->get_setting('WidgetKey')) {
+			$this->add_error(nc_payment_system_arsenalpay::ERROR_WIDGET_KEY_IS_NOT_VALID);
+		}
+	}
+
+	/**
+	 * Проверка параметров при поступлении обратного
+	 * вызова платежной системы.
+	 * В случае ошибок вызывать метод add_error($string)
+	 */
+	public function validate_payment_callback_response(nc_payment_invoice $invoice = null) {
+		$callback_params = $this->get_response();
+
+		// reading AllowedIP from config params
+		$allowed_ip     = trim($this->get_setting('AllowedIP'));
+		$remote_address = $_SERVER["REMOTE_ADDR"];
+		$this->log(date("Y-m-d H:i:s") . " " . $remote_address . " ");
+		if (strlen($allowed_ip) > 0 && $allowed_ip != $remote_address) {
+			$this->add_error(nc_payment_system_arsenalpay::ERROR_NOT_ALLOWED_IP);
+		}
+
+		if (!$this->check_params($callback_params)) {
+			$this->add_error(nc_payment_system_arsenalpay::ERROR_MISSING_PARAM);
+		}
+		if (!$this->check_sign($callback_params, $this->get_setting('CallbackKey'))) {
+			$this->add_error(nc_payment_system_arsenalpay::INVALID_SIGNATURE);
+		}
+		if (!$invoice) {
+			$this->add_error(nc_payment_system_arsenalpay::INVOICE_NOT_FOUND);
+		}
+		$function = $callback_params['FUNCTION'];
+		if (count($this->get_errors()) == 0) {
+			$error = false;
+			switch ($function) {
+				case 'check':
+					$error = $this->callback_check($callback_params, $invoice);
+					break;
+
+				case 'payment':
+					$error = $this->callback_payment($callback_params, $invoice);
+					break;
+
+				case 'hold':
+					$error = $this->callback_hold($callback_params, $invoice);
+					break;
+
+				case 'cancel':
+					$error = $this->callback_cancel($callback_params, $invoice);
+					break;
+
+				case 'cancelinit':
+					$error = $this->callback_cancel($callback_params, $invoice);
+					break;
+
+				default:
+					$error = sprintf(nc_payment_system_arsenalpay::ERROR_FUNCTION, $function);
+					break;
+			}
+
+			if ($error) {
+				$this->add_error($error);
+			}
+		}
+
+		if (count($this->get_errors()) > 0) {
+			$final_statuses = array(
+				nc_payment_invoice::STATUS_CANCELLED,
+				nc_payment_invoice::STATUS_REJECTED,
+				nc_payment_invoice::STATUS_SUCCESS,
+			);
+
+			if ($invoice && !in_array($invoice->get('status'), $final_statuses)) {
+				$invoice->set('status', nc_payment_invoice::STATUS_CALLBACK_ERROR);
+				$invoice->save();
+			}
+
+			if ($function == 'check') {
+				$this->exitf('NO');
+			}
+			else {
+				$this->exitf('ERR');
+			}
+		}
+	}
+
+	/**
+	 * @param $callback_params array
+	 * @param $invoice         nc_payment_invoice
+	 *
+	 * @return string|false
+	 */
+	protected function callback_check($callback_params, $invoice) {
+		$order_status      = $invoice->get('status');
+		$rejected_statuses = array(
+			nc_payment_invoice::STATUS_CANCELLED,
+			nc_payment_invoice::STATUS_REJECTED,
+			nc_payment_invoice::STATUS_SUCCESS,
+		);
+
+		if (in_array($order_status, $rejected_statuses)) {
+			$error = sprintf(nc_payment_system_arsenalpay::ERROR_STATUS, $order_status, nc_payment_invoice::STATUS_WAITING);
+
+			return $error;
+		}
+		$total           = $invoice->get_amount("%0.2F");
+		$isCorrectAmount = ($callback_params['MERCH_TYPE'] == 0 && $total == $callback_params['AMOUNT']) ||
+		                   ($callback_params['MERCH_TYPE'] == 1 && $total >= $callback_params['AMOUNT'] && $total == $callback_params['AMOUNT_FULL']);
+
+		if (!$isCorrectAmount) {
+			$error = sprintf(nc_payment_system_arsenalpay::ERROR_AMOUNT, $total, $callback_params['AMOUNT']);
+
+			return $error;
+		}
+
+		return false;
+	}
+
+	/**
+	 * @param $callback_params array
+	 * @param $invoice         nc_payment_invoice
+	 *
+	 * @return string|false
+	 */
+	protected function callback_hold($callback_params, $invoice) {
+		$order_status      = $invoice->get('status');
+		$rejected_statuses = array(
+			nc_payment_invoice::STATUS_CANCELLED,
+			nc_payment_invoice::STATUS_REJECTED,
+			nc_payment_invoice::STATUS_SUCCESS,
+		);
+
+		if (in_array($order_status, $rejected_statuses)) {
+			$error = sprintf(nc_payment_system_arsenalpay::ERROR_STATUS, $order_status, nc_payment_invoice::STATUS_WAITING);
+
+			return $error;
+		}
+		$total           = $invoice->get_amount("%0.2F");
+		$isCorrectAmount = ($callback_params['MERCH_TYPE'] == 0 && $total == $callback_params['AMOUNT']) ||
+		                   ($callback_params['MERCH_TYPE'] == 1 && $total >= $callback_params['AMOUNT'] && $total == $callback_params['AMOUNT_FULL']);
+
+		if (!$isCorrectAmount) {
+			$error = sprintf(nc_payment_system_arsenalpay::ERROR_AMOUNT, $total, $callback_params['AMOUNT']);
+
+			return $error;
+		}
+
+		return false;
+	}
+
+	/**
+	 * @param $callback_params array
+	 * @param $invoice         nc_payment_invoice
+	 *
+	 * @return string|false
+	 */
+	protected function callback_cancel($callback_params, $invoice) {
+		$order_status      = $invoice->get('status');
+		$rejected_statuses = array(
+			nc_payment_invoice::STATUS_CANCELLED,
+			nc_payment_invoice::STATUS_REJECTED,
+			nc_payment_invoice::STATUS_SUCCESS,
+		);
+
+		if (in_array($order_status, $rejected_statuses)) {
+			$error = sprintf(nc_payment_system_arsenalpay::ERROR_STATUS, $order_status, nc_payment_invoice::STATUS_REJECTED);
+
+			return $error;
+		}
+
+		return false;
+	}
+
+	/**
+	 * @param $callback_params array
+	 * @param $invoice         nc_payment_invoice
+	 *
+	 * @return string|false
+	 */
+	protected function callback_payment($callback_params, $invoice) {
+		$order_status      = $invoice->get('status');
+		$rejected_statuses = array(
+			nc_payment_invoice::STATUS_CANCELLED,
+			nc_payment_invoice::STATUS_REJECTED,
+			nc_payment_invoice::STATUS_SUCCESS,
+		);
+
+		if (in_array($order_status, $rejected_statuses)) {
+			$error = sprintf(nc_payment_system_arsenalpay::ERROR_STATUS, $order_status, nc_payment_invoice::STATUS_SUCCESS);
+
+			return $error;
+		}
+		$total           = $invoice->get_amount("%0.2F");
+		$isCorrectAmount = ($callback_params['MERCH_TYPE'] == 0 && $total == $callback_params['AMOUNT']) ||
+		                   ($callback_params['MERCH_TYPE'] == 1 && $total >= $callback_params['AMOUNT'] && $total == $callback_params['AMOUNT_FULL']);
+
+		if (!$isCorrectAmount) {
+			$error = sprintf(nc_payment_system_arsenalpay::ERROR_AMOUNT, $total, $callback_params['AMOUNT']);
+
+			return $error;
+		}
+
+		return false;
+	}
+
+	/**
+	 * @return nc_payment_invoice|boolean
+	 */
+	public function load_invoice_on_callback() {
+		return $this->load_invoice($this->get_response_value('ACCOUNT'));
+	}
+
+	protected function check_params($callback_params) {
+		$required_keys = array
+		(
+			'ID',           /* Merchant identifier */
+			'FUNCTION',     /* Type of request to which the response is received*/
+			'RRN',          /* Transaction identifier */
+			'PAYER',        /* Payer(customer) identifier */
+			'AMOUNT',       /* Payment amount */
+			'ACCOUNT',      /* Order number */
+			'STATUS',       /* When /check/ - response for the order number checking, when
+									// payment/ - response for status change.*/
+			'DATETIME',     /* Date and time in ISO-8601 format, urlencoded.*/
+			'SIGN',         /* Response sign  = md5(md5(ID).md(FUNCTION).md5(RRN).md5(PAYER).md5(request amount).
+									// md5(ACCOUNT).md(STATUS).md5(PASSWORD)) */
+		);
+
+		/**
+		 * Checking the absence of each parameter in the post request.
+		 */
+		foreach ($required_keys as $key) {
+			if (empty($callback_params[$key]) || !array_key_exists($key, $callback_params)) {
+				$this->log('Error in callback parameters ERR' . $key);
+
+				return false;
+			}
+			else {
+				$this->log("    $key=$callback_params[$key]");
+
+			}
+		}
+
+		if ($callback_params['FUNCTION'] != $callback_params['STATUS']) {
+			$this->log("Error: FUNCTION ({$callback_params['FUNCTION']} not equal STATUS ({$callback_params['STATUS']})");
+
+			return false;
+		}
+
+		return true;
+	}
+
+	protected function check_sign($ars_callback, $pass) {
+		$validSign = ($ars_callback['SIGN'] === md5(md5($ars_callback['ID']) .
+		                                            md5($ars_callback['FUNCTION']) . md5($ars_callback['RRN']) .
+		                                            md5($ars_callback['PAYER']) . md5($ars_callback['AMOUNT']) . md5($ars_callback['ACCOUNT']) .
+		                                            md5($ars_callback['STATUS']) . md5($pass))) ? true : false;
+
+		return $validSign;
+	}
+
+	protected function add_error($string) {
+		$this->log($string);
+		parent::add_error($string);
+	}
+
+	protected function log($str) {
+		$fp = fopen(realpath(dirname(__FILE__)) . "/arsenalpay/callback.log", "a+");
+		$dt = date('c');
+		fwrite($fp, $dt . ' : ' . $str . "\r\n");
+		fclose($fp);
+	}
+
+	protected function exitf($response) {
+		$this->log("Response: " . $response);
+		echo $response;
+	}
 }
 
