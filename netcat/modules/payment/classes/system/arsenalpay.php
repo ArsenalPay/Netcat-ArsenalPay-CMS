@@ -101,30 +101,80 @@ class nc_payment_system_arsenalpay extends nc_payment_system {
 
 		switch ($function) {
 			case 'check':
+
+				$vpost = json_encode($_POST);
+				$vinvoice = $invoice->get_id();
+
+				$shinvoice = new nc_payment_invoice();
+                $shinvoice->load($vinvoice);
+
+                $orderID = $shinvoice['order_id'];
+                $rrn = $_POST['RRN'];
+
+                $netshop = nc_netshop::get_instance();
+				$order = $netshop->load_order($orderID);
+				$itemsOrder = array();
+				foreach ($order->get_items() as $item){
+					$itemsOrder[] = array(
+						"name" => $item['Name'],
+						"price" => $item['ItemPrice'],
+						"quantity" => (int) $item['Qty'],
+						"sum" => $item['ItemPrice']*$item['Qty']
+					);
+				}                
+ 
+                $ansfer = array(
+                	"response" => "YES", 
+                	"ofd" => array(
+                		"id" => $rrn,
+                		"type" => "sell",
+                		"receipt" => array(
+                			"attributes" => array(
+                				"email" => $shinvoice['customer_email']
+                				),
+                			"items" => $itemsOrder
+                			)
+                		)
+                	);
+
+                $ansferJson = json_encode($ansfer, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
+				
+				
 				$invoice->set('status', nc_payment_invoice::STATUS_WAITING);
 				$invoice->save();
-				$this->exitf('YES');
+
+				$this->exitf($ansferJson);
+
 				break;
 
 			case 'payment':
+
+				$vinvoice = $invoice->get_id();
+
+				$shinvoice = new nc_payment_invoice();
+                $shinvoice->load($vinvoice);
+
+                $orderID = $shinvoice['order_id'];
+                $sum = $this->get_response_value('AMOUNT');
+
 				$this->on_payment_success($invoice);
-				$this->exitf('OK');
+				$this->exitf('{"response":"OK"}');
 				break;
 
 			case 'hold':
 				$invoice->set('status', nc_payment_invoice::STATUS_WAITING);
 				$invoice->save();
-				$this->exitf('OK');
+				$this->exitf('{"response":"OK"}');
 				break;
 
 			case 'cancel':
 				$this->on_payment_rejected($invoice);
-				$this->exitf('OK');
+				$this->exitf('{"response":"OK"}');
 				break;
 
 			case 'cancelinit':
 				$this->on_payment_rejected($invoice);
-				$this->exitf('OK');
+				$this->exitf('{"response":"OK"}');
 				break;
 
 			default:
