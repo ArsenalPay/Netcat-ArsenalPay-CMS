@@ -1,4 +1,4 @@
-<?
+<?php
 
 class nc_payment_system_arsenalpay extends nc_payment_system {
 
@@ -102,47 +102,42 @@ class nc_payment_system_arsenalpay extends nc_payment_system {
 		switch ($function) {
 			case 'check':
 
-				$vpost = json_encode($_POST);
 				$vinvoice = $invoice->get_id();
 
 				$shinvoice = new nc_payment_invoice();
-                $shinvoice->load($vinvoice);
+                                $shinvoice->load($vinvoice);
+                                
+                                $orderID = $shinvoice['order_id'];
+                                $rrn = $_POST['RRN'];
 
-                $orderID = $shinvoice['order_id'];
-                $rrn = $_POST['RRN'];
-
-                $netshop = nc_netshop::get_instance();
-				$order = $netshop->load_order($orderID);
-				$itemsOrder = array();
-				foreach ($order->get_items() as $item){
+                                $itemsOrder = array();
+				foreach ($shinvoice->get_items() as $item)
+                                {
 					$itemsOrder[] = array(
-						"name" => $item['Name'],
-						"price" => $item['ItemPrice'],
-						"quantity" => (int) $item['Qty'],
-						"sum" => $item['ItemPrice']*$item['Qty']
+						"name" => $item['name'],
+						"price" => $item['item_price'],
+						"quantity" => (int) $item['qty'],
+						"sum" => $item['item_price'] * $item['qty']
 					);
-				}                
- 
-                $ansfer = array(
-                	"response" => "YES", 
-                	"ofd" => array(
-                		"id" => $rrn,
-                		"type" => "sell",
-                		"receipt" => array(
-                			"attributes" => array(
-                				"email" => $shinvoice['customer_email']
-                				),
-                			"items" => $itemsOrder
-                			)
-                		)
-                	);
+				}
+                                $ansfer = array(
+                                        "response" => "YES", 
+                                        "ofd" => array(
+                                                "id" => $rrn,
+                                                "type" => "sell",
+                                                "receipt" => array(
+                                                        "attributes" => array(
+                                                                "email" => $shinvoice['customer_email']
+                                                                ),
+                                                        "items" => $itemsOrder
+                                                        )
+                                                )
+                                        );
 
-                $ansferJson = json_encode($ansfer, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
-				
+                                $ansferJson = json_encode($ansfer, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
 				
 				$invoice->set('status', nc_payment_invoice::STATUS_WAITING);
 				$invoice->save();
-
 				$this->exitf($ansferJson);
 
 				break;
@@ -150,12 +145,11 @@ class nc_payment_system_arsenalpay extends nc_payment_system {
 			case 'payment':
 
 				$vinvoice = $invoice->get_id();
+                                $shinvoice = new nc_payment_invoice();
+                                $shinvoice->load($vinvoice);
 
-				$shinvoice = new nc_payment_invoice();
-                $shinvoice->load($vinvoice);
-
-                $orderID = $shinvoice['order_id'];
-                $sum = $this->get_response_value('AMOUNT');
+                                $orderID = $shinvoice['order_id'];
+                                $sum = $this->get_response_value('AMOUNT');
 
 				$this->on_payment_success($invoice);
 				$this->exitf('{"response":"OK"}');
